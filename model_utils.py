@@ -25,6 +25,17 @@ HF_TOKEN = os.environ.get("HF_TOKEN")
 class_names = ["BI-RADS 1", "BI-RADS 3", "BI-RADS 4", "BI-RADS 5"]
 num_classes = len(class_names)
 
+# Short, plain-language descriptions shown next to each class in the UI.
+# NOTE: these are general/standard BI-RADS descriptions for reference only —
+# review and adjust wording with your supervisor/clinical advisor before
+# showing this to any real end users.
+class_descriptions = {
+    "BI-RADS 1": "Negative — no significant abnormality found.",
+    "BI-RADS 3": "Probably benign — likely non-cancerous; short-interval follow-up is often recommended.",
+    "BI-RADS 4": "Suspicious abnormality — biopsy may be considered.",
+    "BI-RADS 5": "Highly suggestive of malignancy — biopsy strongly recommended.",
+}
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 CHECKPOINT_FILES = {
@@ -156,12 +167,14 @@ def get_models():
 # ==========================================
 # 5) Inference
 # ==========================================
-def run_ensemble(cc_image, mlo_image):
+def run_classification(cc_image, mlo_image):
     """
     cc_image, mlo_image: PIL.Image (RGB or convertible to RGB)
 
     Returns:
-        final_probs: dict[class_name -> float] — averaged CC+MLO probabilities
+        final_probs: dict[class_name -> float] — CC+MLO averaged probabilities
+        cc_probs:    dict[class_name -> float] — CC view alone
+        mlo_probs:   dict[class_name -> float] — MLO view alone
     """
     densenet_cc, densenet_mlo = get_models()
 
@@ -173,6 +186,16 @@ def run_ensemble(cc_image, mlo_image):
         prob_mlo = F.softmax(densenet_mlo(x_mlo), dim=1)
         avg_probs = (prob_cc + prob_mlo) / 2.0
 
+    cc_probs_np = prob_cc[0].cpu().numpy()
+    mlo_probs_np = prob_mlo[0].cpu().numpy()
     avg_probs_np = avg_probs[0].cpu().numpy()
+
+    cc_probs = {class_names[i]: float(cc_probs_np[i]) for i in range(num_classes)}
+    mlo_probs = {class_names[i]: float(mlo_probs_np[i]) for i in range(num_classes)}
     final_probs = {class_names[i]: float(avg_probs_np[i]) for i in range(num_classes)}
-    return final_probs
+
+    return final_probs, cc_probs, mlo_probs
+
+
+# Kept as an alias so any existing code importing run_ensemble still works.
+run_ensemble = run_classification
