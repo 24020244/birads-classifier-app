@@ -98,7 +98,7 @@ with st.sidebar:
 st.markdown(
     """
     <div class="hero">
-        <h1>BI-RADS Intelligent Classifier</h1>
+        <h1>Dual-View Intelligent BI-RADS Classifier</h1>
         <p>DenseNet121 model trained on CC and MLO mammogram views</p>
     </div>
     """,
